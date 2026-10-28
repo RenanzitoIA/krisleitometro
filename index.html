@@ -188,6 +188,34 @@
 
   #confetti { position: fixed; inset: 0; z-index: 40; pointer-events: none; width: 100%; height: 100%; }
 
+  /* 67: o prêmio raro */
+  .polaroid.premio {
+    background: linear-gradient(160deg, #fff6c9, #ffe27a 55%, #ffc93c);
+    animation: drop .55s cubic-bezier(.2, 1.5, .4, 1), glow 1.6s ease-in-out .6s infinite alternate;
+  }
+  .premio-tag {
+    justify-self: center;
+    font-family: var(--font-display); font-size: .95rem; letter-spacing: .06em;
+    color: #fff; background: var(--kris); border: 3px solid var(--ink); border-radius: 999px;
+    padding: 6px 14px 4px; transform: rotate(-3deg); box-shadow: 0 3px 0 var(--ink);
+  }
+  .segredo {
+    margin: 0; padding: 12px 14px; border-radius: 14px;
+    background: #fff; border: 3px dashed var(--ink);
+    font-weight: 800; line-height: 1.4; text-wrap: pretty;
+  }
+  .codigo { margin: 0; font-family: var(--font-display); font-size: .95rem; color: var(--ink); letter-spacing: .04em; }
+  .codigo small { display: block; font-family: var(--font-body); font-weight: 800; font-size: .78rem; color: var(--muted); letter-spacing: 0; }
+  .share {
+    font-family: var(--font-display); color: #fff; background: linear-gradient(180deg, #34d399, #16a34a);
+    border: 3px solid var(--ink); border-radius: 999px; padding: 11px 22px 9px;
+    box-shadow: 0 5px 0 #0f7a36, 0 5px 0 3px var(--ink);
+  }
+  .share:active { transform: translateY(4px); box-shadow: 0 1px 0 #0f7a36, 0 1px 0 3px var(--ink); }
+  .share-msg { margin: -4px 0 0; font-size: .85rem; color: var(--muted); min-height: 1.2em; }
+  .chip.ouro { background: linear-gradient(180deg, #ffe066, var(--gold)) !important; color: var(--ink); }
+  @keyframes glow { to { box-shadow: 0 14px 0 var(--ink), 0 0 0 8px rgba(255, 210, 63, .55), 0 30px 70px rgba(255, 200, 40, .6); } }
+
   /* Bichos desenhados (só aparecem se o GIF não carregar) */
   .wiggle { animation: wiggle 1.2s ease-in-out infinite; transform-origin: 50% 90%; }
   .ear-l { animation: ear 1.6s ease-in-out infinite; transform-origin: 70px 70px; }
@@ -246,13 +274,18 @@
 <div class="overlay" id="overlay" hidden>
   <div class="polaroid" role="dialog" aria-modal="true" aria-labelledby="phrase">
     <span class="tape" aria-hidden="true"></span>
+    <span class="premio-tag" id="premio-tag" hidden>VOCÊ TIROU 67!</span>
     <div class="photo" id="photo"></div>
     <p class="phrase" id="phrase"></p>
     <p class="pct" id="pct"></p>
+    <p class="segredo" id="segredo" hidden></p>
+    <p class="codigo" id="codigo" hidden></p>
     <div class="actions">
       <button class="ghost" id="close" type="button">Fechar</button>
+      <button class="share" id="share" type="button" hidden>COMPARTILHAR IMAGEM</button>
       <button class="again" id="again" type="button">MEDIR DE NOVO</button>
     </div>
+    <p class="share-msg" id="share-msg" aria-live="polite" hidden></p>
   </div>
 </div>
 
@@ -277,6 +310,20 @@
     "umw2Y8CDhrxNvYlq8o", "5JEWBLv0mZDYA", "YmyrLxHa3PeFOgWR65", "lYdSNN8FwmKRbSNYrk",
   ];
   const gifUrl = (id) => `https://media.giphy.com/media/${id}/giphy.gif`;
+
+  // 67 é o prêmio raro: 1 chance em 500 (0,2%). Fora isso, sorteia 0 a 100 sem o 67.
+  const PREMIO = 67;
+  const CHANCE_PREMIO = 1 / 500;
+  function sorteiaValor() {
+    if (Math.random() < CHANCE_PREMIO) return PREMIO;
+    let v;
+    do { v = Math.floor(Math.random() * 101); } while (v === PREMIO);
+    return v;
+  }
+  // Mensagem secreta do 67, em base64 só pra não estragar a surpresa de quem lê o código.
+  const SEGREDO = new TextDecoder().decode(Uint8Array.from(atob(
+    "UGFyYWLDqW5zLi4uIGFnb3JhIG8gUmVuYW4gZXN0w6EgdGUgZGV2ZW5kbyB1bWEgcHJlbmRhISBDb2JyZSBubyBncnVwbyBvdSBubyBwcsOzeGltbyByb2zDqiwgZSBjb21wYXJ0aWxoZSBhIGltYWdlbSBubyBncnVwbyBkbyBTYW5hdMOzcmlvIHByYSB0b2RvcyB2ZXJlbS4="
+  ), (c) => c.charCodeAt(0)));
 
   // Faixas do medidor: cor no arco e frases sorteadas.
   const FAIXAS = [
@@ -431,9 +478,11 @@
     img.src = gifUrl(proximo.id);
   }
 
+  let gifAtual = null;
   function mostraBicho() {
     const { tipo, id } = proximo || sorteiaGif();
     ultimoGif = id;
+    gifAtual = id;
     const badge = photo.querySelector(".badge");
     photo.innerHTML = `<span class="loading">chamando um ${tipo}…</span>`;
     if (badge) photo.appendChild(badge);
@@ -484,21 +533,169 @@
     historico.unshift(v);
     historico.length = Math.min(historico.length, 8);
     historyEl.innerHTML = historico
-      .map((x) => `<span class="chip" style="background:${faixaDe(x).cor}">${x}</span>`)
+      .map((x) => x === PREMIO
+        ? `<span class="chip ouro">${x}</span>`
+        : `<span class="chip" style="background:${faixaDe(x).cor}">${x}</span>`)
       .join("");
   }
 
+  // Código do prêmio: data e hora + 4 letras sorteadas, pra cada print ser único.
+  let premioAtual = null;
+  function novoCodigo() {
+    const letras = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let sufixo = "";
+    for (let i = 0; i < 4; i++) sufixo += letras[Math.floor(Math.random() * letras.length)];
+    const quando = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    return { codigo: `KRIS-67-${sufixo}`, quando };
+  }
+
+  const polaroid = document.querySelector(".polaroid");
   let ultimoFoco = null;
   function abrePopup(v) {
     const f = faixaDe(v);
-    phraseEl.textContent = sorteia(f.lista);
-    pctEl.textContent = `${v} de 100 no Krisleitometro`;
-    photo.innerHTML = `<span class="badge" style="background:${f.cor}">${v}</span>`;
+    const premio = v === PREMIO;
+    polaroid.classList.toggle("premio", premio);
+    $("premio-tag").hidden = !premio;
+    $("segredo").hidden = !premio;
+    $("codigo").hidden = !premio;
+    $("share").hidden = !premio;
+    $("share-msg").hidden = true;
+    if (premio) {
+      premioAtual = novoCodigo();
+      phraseEl.textContent = "O número mais raro do Krisleitometro!";
+      pctEl.textContent = "Só 1 chance em 500";
+      $("segredo").textContent = SEGREDO;
+      $("codigo").innerHTML = `${premioAtual.codigo}<small>${premioAtual.quando}</small>`;
+    } else {
+      premioAtual = null;
+      phraseEl.textContent = sorteia(f.lista);
+      pctEl.textContent = `${v} de 100 no Krisleitometro`;
+    }
+    photo.innerHTML = `<span class="badge" style="background:${premio ? "#ffd23f" : f.cor};${premio ? "color:#1b1f4b" : ""}">${v}</span>`;
     ultimoFoco = document.activeElement;
     overlay.hidden = false;
-    $("again").focus();
+    (premio ? $("share") : $("again")).focus();
     mostraBicho();
-    confete([f.cor, "#ffd23f", "#ffffff", "#4d7cff"]);
+    confete(premio ? ["#ffd23f", "#ff3d8b", "#10c9b4", "#ffffff", "#4d7cff"] : [f.cor, "#ffd23f", "#ffffff", "#4d7cff"]);
+    if (premio) setTimeout(() => confete(["#ffd23f", "#ffffff", "#ff3d8b"]), 700);
+  }
+
+  // Imagem do prêmio pra mandar no grupo (1080 x 1350, formato de post).
+  function quebraLinhas(c, texto, largura) {
+    const palavras = texto.split(" "), linhas = [];
+    let linha = "";
+    palavras.forEach((p) => {
+      const teste = linha ? `${linha} ${p}` : p;
+      if (c.measureText(teste).width > largura && linha) { linhas.push(linha); linha = p; }
+      else linha = teste;
+    });
+    if (linha) linhas.push(linha);
+    return linhas;
+  }
+  function carregaGifParaImagem(id) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      const t = setTimeout(() => resolve(null), 5000);
+      img.onload = () => { clearTimeout(t); resolve(img); };
+      img.onerror = () => { clearTimeout(t); resolve(null); };
+      img.src = gifUrl(id);
+    });
+  }
+  async function geraImagemPremio() {
+    await document.fonts.ready;
+    const W = 1080, H = 1350;
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const c = cv.getContext("2d");
+    const ink = "#1b1f4b";
+
+    const fundo = c.createRadialGradient(W / 2, 0, 100, W / 2, 0, H);
+    fundo.addColorStop(0, "#4d7cff"); fundo.addColorStop(1, "#2f55e0");
+    c.fillStyle = fundo; c.fillRect(0, 0, W, H);
+    c.save(); c.translate(W / 2, H / 2); c.fillStyle = "rgba(255,255,255,.07)";
+    for (let i = 0; i < 20; i++) { c.rotate(Math.PI / 10); c.beginPath(); c.moveTo(0, 0); c.lineTo(-90, -1400); c.lineTo(90, -1400); c.fill(); }
+    c.restore();
+
+    // título
+    c.textAlign = "center"; c.lineJoin = "round";
+    c.font = '96px "Titan One", "Arial Black", sans-serif';
+    c.lineWidth = 14; c.strokeStyle = ink; c.strokeText("Krisleitometro", W / 2, 140);
+    c.fillStyle = "#ffffff"; c.fillText("Krisleitometro", W / 2, 140);
+
+    // cartão
+    const cx = 90, cy = 200, cw = W - 180, ch = 1050;
+    c.fillStyle = ink; c.beginPath(); c.roundRect(cx, cy + 18, cw, ch, 28); c.fill();
+    const ouro = c.createLinearGradient(0, cy, 0, cy + ch);
+    ouro.addColorStop(0, "#fff6c9"); ouro.addColorStop(.6, "#ffe27a"); ouro.addColorStop(1, "#ffc93c");
+    c.fillStyle = ouro; c.beginPath(); c.roundRect(cx, cy, cw, ch, 28); c.fill();
+    c.lineWidth = 8; c.strokeStyle = ink; c.stroke();
+
+    // foto do bicho
+    const fx = cx + 50, fy = cy + 50, fw = cw - 100, fh = 470;
+    c.fillStyle = "#ffffff"; c.fillRect(fx, fy, fw, fh);
+    const gif = gifAtual ? await carregaGifParaImagem(gifAtual) : null;
+    if (gif) {
+      // GIF inteiro (sem cortar a legenda do meme), centralizado na moldura
+      const esc = Math.min(fw / gif.width, fh / gif.height);
+      const dw = gif.width * esc, dh = gif.height * esc;
+      c.drawImage(gif, fx + (fw - dw) / 2, fy + (fh - dh) / 2, dw, dh);
+    }
+    c.lineWidth = 6; c.strokeStyle = ink; c.strokeRect(fx, fy, fw, fh);
+
+    // selo 67
+    c.save(); c.translate(fx + fw - 110, fy + fh - 60); c.rotate(.1);
+    c.fillStyle = ink; c.beginPath(); c.roundRect(-95, -60, 190, 130, 26); c.fill();
+    c.fillStyle = "#ffd23f"; c.beginPath(); c.roundRect(-95, -70, 190, 130, 26); c.fill();
+    c.lineWidth = 6; c.stroke();
+    c.fillStyle = ink; c.font = '96px "Titan One", sans-serif'; c.fillText("67", 0, 28);
+    c.restore();
+
+    // textos
+    let y = fy + fh + 90;
+    c.fillStyle = "#ff3d8b"; c.font = '58px "Titan One", sans-serif';
+    c.fillText("VOCÊ TIROU 67!", W / 2, y);
+    y += 70;
+    c.fillStyle = ink; c.font = '800 38px "Nunito", sans-serif';
+    quebraLinhas(c, SEGREDO, cw - 120).forEach((l) => { c.fillText(l, W / 2, y); y += 50; });
+    y += 30;
+    c.font = '44px "Titan One", sans-serif'; c.fillText(premioAtual.codigo, W / 2, y);
+    c.font = '800 30px "Nunito", sans-serif'; c.fillStyle = "#6b70a3"; c.fillText(premioAtual.quando, W / 2, y + 44);
+
+    c.fillStyle = "rgba(255,255,255,.9)"; c.font = '800 30px "Nunito", sans-serif';
+    c.fillText("renanzitoia.github.io/krisleitometro", W / 2, H - 40);
+
+    return new Promise((resolve) => cv.toBlob(resolve, "image/png"));
+  }
+
+  async function compartilhar() {
+    const btnShare = $("share"), msg = $("share-msg");
+    btnShare.disabled = true; btnShare.textContent = "GERANDO…";
+    msg.hidden = false; msg.textContent = "";
+    try {
+      const blob = await geraImagemPremio();
+      const arquivo = new File([blob], `krisleitometro-67-${premioAtual.codigo}.png`, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+        try {
+          await navigator.share({ files: [arquivo], text: "Tirei 67 no Krisleitometro! O Renan me deve uma prenda." });
+          msg.textContent = "Agora manda no grupo do Sanatório!";
+        } catch (e) {
+          if (e.name !== "AbortError") throw e;
+          msg.textContent = "Compartilhamento cancelado.";
+        }
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = arquivo.name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        msg.textContent = "Imagem baixada. Agora manda no grupo do Sanatório!";
+      }
+    } catch {
+      msg.textContent = "Não deu pra gerar a imagem. Tire um print da tela e mande no grupo.";
+    } finally {
+      btnShare.disabled = false; btnShare.textContent = "COMPARTILHAR IMAGEM";
+    }
   }
   function fechaPopup() {
     if (overlay.hidden) return;
@@ -513,7 +710,7 @@
     btn.textContent = "MEDINDO…";
     verdict.textContent = "Calibrando os sensores…";
     verdict.style.color = "";
-    const final = Math.floor(Math.random() * 101);
+    const final = sorteiaValor();
     await anima(final);
     verdict.textContent = `Resultado: ${curto(final)}`;
     verdict.style.color = faixaDe(final).cor;
@@ -527,6 +724,7 @@
   btn.addEventListener("click", medir);
   $("again").addEventListener("click", medir);
   $("close").addEventListener("click", fechaPopup);
+  $("share").addEventListener("click", compartilhar);
   overlay.addEventListener("click", (e) => { if (e.target === overlay) fechaPopup(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") fechaPopup(); });
 })();
