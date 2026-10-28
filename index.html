@@ -316,7 +316,7 @@
 
   // 67 é o prêmio raro: 1 chance em 500 (0,2%). Fora isso, sorteia 0 a 100 sem o 67.
   const PREMIO = 67;
-  const CHANCE_PREMIO = 1; // TESTE: voltar para 1 / 500
+  const CHANCE_PREMIO = 1 / 500;
   function sorteiaValor() {
     if (Math.random() < CHANCE_PREMIO) return PREMIO;
     let v;
