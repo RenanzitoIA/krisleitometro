@@ -193,6 +193,9 @@
     background: linear-gradient(160deg, #fff6c9, #ffe27a 55%, #ffc93c);
     animation: drop .55s cubic-bezier(.2, 1.5, .4, 1), glow 1.6s ease-in-out .6s infinite alternate;
   }
+  /* foto mais baixa no prêmio, pra mensagem e botão caberem na tela do notebook */
+  .polaroid.premio { gap: 10px; }
+  .polaroid.premio .photo { aspect-ratio: auto; height: min(28vh, 270px); flex-shrink: 0; }
   .premio-tag {
     justify-self: center;
     font-family: var(--font-display); font-size: .95rem; letter-spacing: .06em;
@@ -313,7 +316,7 @@
 
   // 67 é o prêmio raro: 1 chance em 500 (0,2%). Fora isso, sorteia 0 a 100 sem o 67.
   const PREMIO = 67;
-  const CHANCE_PREMIO = 1 / 500;
+  const CHANCE_PREMIO = 1; // TESTE: voltar para 1 / 500
   function sorteiaValor() {
     if (Math.random() < CHANCE_PREMIO) return PREMIO;
     let v;
@@ -576,6 +579,8 @@
     overlay.hidden = false;
     (premio ? $("share") : $("again")).focus();
     mostraBicho();
+    // gera a imagem já, pra o clique em compartilhar chamar o share na hora (o navegador exige)
+    imagemPronta = premio ? geraImagemPremio().catch(() => null) : null;
     confete(premio ? ["#ffd23f", "#ff3d8b", "#10c9b4", "#ffffff", "#4d7cff"] : [f.cor, "#ffd23f", "#ffffff", "#4d7cff"]);
     if (premio) setTimeout(() => confete(["#ffd23f", "#ffffff", "#ff3d8b"]), 700);
   }
@@ -668,28 +673,37 @@
     return new Promise((resolve) => cv.toBlob(resolve, "image/png"));
   }
 
+  let imagemPronta = null;
+  function baixa(blob, nome) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
   async function compartilhar() {
     const btnShare = $("share"), msg = $("share-msg");
     btnShare.disabled = true; btnShare.textContent = "GERANDO…";
     msg.hidden = false; msg.textContent = "";
     try {
-      const blob = await geraImagemPremio();
-      const arquivo = new File([blob], `krisleitometro-67-${premioAtual.codigo}.png`, { type: "image/png" });
-      if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+      const blob = (await imagemPronta) || (await geraImagemPremio());
+      const nome = `krisleitometro-67-${premioAtual.codigo}.png`;
+      const arquivo = new File([blob], nome, { type: "image/png" });
+      // Compartilhamento nativo só no celular; no computador baixa o PNG (o do Windows é instável).
+      const celular = matchMedia("(pointer: coarse)").matches;
+      let compartilhou = false;
+      if (celular && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
         try {
           await navigator.share({ files: [arquivo], text: "Tirei 67 no Krisleitometro! O Renan me deve uma prenda." });
           msg.textContent = "Agora manda no grupo do Sanatório!";
+          compartilhou = true;
         } catch (e) {
-          if (e.name !== "AbortError") throw e;
-          msg.textContent = "Compartilhamento cancelado.";
+          if (e.name === "AbortError") { msg.textContent = "Compartilhamento cancelado."; compartilhou = true; }
         }
-      } else {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = arquivo.name;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-        msg.textContent = "Imagem baixada. Agora manda no grupo do Sanatório!";
+      }
+      if (!compartilhou) {
+        baixa(blob, nome);
+        msg.textContent = "Imagem salva nos downloads. Agora manda no grupo do Sanatório!";
       }
     } catch {
       msg.textContent = "Não deu pra gerar a imagem. Tire um print da tela e mande no grupo.";
