@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Descubra se hoje você está mais pra Krisleite ou pra Tifanometro.">
+<meta name="theme-color" content="#4d7cff">
+<title>Krisleitometro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titan+One&family=Nunito:wght@600;800;900&display=swap">
+<style>
+  /* Layout: palco de programa de auditório. Céu azul com raios girando, medidor branco
+     no centro, botão de fliperama embaixo; o resultado sai num polaroid com GIF de meme. */
+  :root {
+    --sky: #4d7cff;
+    --sky-deep: #2f55e0;
+    --ray: rgba(255, 255, 255, 0.07);
+    --paper: #ffffff;
+    --ink: #1b1f4b;
+    --muted: #6b70a3;
+    --kris: #ff3d8b;
+    --kris-deep: #c81e63;
+    --tifa: #10c9b4;
+    --tifa-deep: #0a8f80;
+    --gold: #ffd23f;
+    --gold-deep: #e0a800;
+    --font-display: "Titan One", "Arial Black", Impact, sans-serif;
+    --font-body: "Nunito", "Trebuchet MS", system-ui, sans-serif;
+    color-scheme: light;
+  }
+
+  [hidden] { display: none !important; }
+  *, *::before, *::after { box-sizing: border-box; }
+  img { max-width: 100%; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: radial-gradient(120% 90% at 50% 0%, var(--sky) 0%, var(--sky-deep) 100%);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-weight: 600;
+    overflow-x: hidden;
+    position: relative;
+  }
+  /* Raios de palco girando bem devagar atrás de tudo. */
+  .rays {
+    position: fixed; inset: -50vmax; z-index: 0; pointer-events: none;
+    background: repeating-conic-gradient(from 0deg at 50% 50%, var(--ray) 0deg 9deg, transparent 9deg 18deg);
+    animation: spin 90s linear infinite;
+  }
+  main {
+    position: relative; z-index: 1;
+    max-width: 600px; margin: 0 auto;
+    padding-block: 28px 40px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 22px; justify-items: center; text-align: center;
+  }
+
+  .logo { display: grid; gap: 6px; justify-items: center; }
+  .logo small {
+    font-family: var(--font-body); font-weight: 900; font-size: .78rem; letter-spacing: .22em;
+    color: #fff; background: var(--ink); padding: 6px 14px; border-radius: 999px;
+    transform: rotate(-2deg);
+  }
+  h1 {
+    margin: 0;
+    font-family: var(--font-display); font-weight: 400;
+    font-size: clamp(2.2rem, 10vw, 4rem); line-height: .95;
+    color: #fff;
+    -webkit-text-stroke: 2px var(--ink);
+    paint-order: stroke fill;
+    text-shadow: 0 5px 0 var(--ink), 0 10px 22px rgba(0, 0, 0, .25);
+    letter-spacing: .01em;
+  }
+  h1 .k { color: var(--kris); }
+  h1 .t { color: var(--gold); }
+
+  /* Medidor */
+  .meter {
+    width: 100%;
+    background: var(--paper);
+    border-radius: 34px;
+    padding: 22px 18px 18px;
+    box-sizing: border-box;
+    box-shadow: 0 10px 0 var(--ink), 0 26px 50px rgba(10, 20, 80, .35);
+    border: 4px solid var(--ink);
+  }
+  .meter svg { width: 100%; height: auto; display: block; }
+  .tick-num { font-family: var(--font-display); font-size: 14px; fill: var(--muted); }
+  .end {
+    display: flex; justify-content: space-between; gap: 10px; margin-top: 4px;
+    font-family: var(--font-display); font-size: clamp(.8rem, 3.6vw, 1rem);
+  }
+  .end span { padding: 6px 12px; border-radius: 999px; color: #fff; border: 3px solid var(--ink); }
+  .end .a { background: var(--kris); }
+  .end .b { background: var(--tifa); }
+
+  .lcd {
+    margin: 14px auto 0;
+    width: fit-content; min-width: 170px;
+    background: var(--ink); color: var(--gold);
+    border-radius: 18px; padding: 10px 22px 8px;
+    font-family: var(--font-display); font-variant-numeric: tabular-nums;
+    box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .08), inset 0 -6px 0 rgba(0, 0, 0, .3);
+  }
+  .lcd b { font-weight: 400; font-size: clamp(2.6rem, 13vw, 3.6rem); line-height: 1; letter-spacing: .04em; text-shadow: 0 0 18px rgba(255, 210, 63, .55); }
+  .lcd span { font-size: .9rem; color: rgba(255, 210, 63, .6); margin-left: 4px; }
+  .verdict { margin: 12px 0 0; font-weight: 800; font-size: 1.05rem; min-height: 1.5em; color: var(--muted); }
+
+  .needle { transform-origin: 200px 205px; }
+
+  /* Botão de fliperama */
+  button { font: inherit; cursor: pointer; }
+  .big {
+    font-family: var(--font-display); font-size: clamp(1.2rem, 5.5vw, 1.6rem); letter-spacing: .02em;
+    color: #fff; background: linear-gradient(180deg, #ff5c9d, var(--kris));
+    border: 4px solid var(--ink); border-radius: 999px;
+    padding: 18px 40px 16px;
+    box-shadow: 0 8px 0 var(--kris-deep), 0 8px 0 4px var(--ink), 0 18px 30px rgba(0, 0, 0, .25);
+    transition: transform .08s ease, box-shadow .08s ease, filter .2s;
+  }
+  .big:hover { filter: brightness(1.06) saturate(1.1); }
+  .big:active { transform: translateY(7px); box-shadow: 0 1px 0 var(--kris-deep), 0 1px 0 4px var(--ink), 0 6px 10px rgba(0, 0, 0, .2); }
+  .big:disabled { cursor: progress; filter: saturate(.6); }
+  :focus-visible { outline: 4px solid var(--gold); outline-offset: 5px; }
+
+  .history { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; min-height: 36px; }
+  .history:empty::before { content: "Suas últimas medições aparecem aqui"; color: rgba(255, 255, 255, .75); font-size: .9rem; }
+  .chip {
+    font-family: var(--font-display); font-size: .9rem; font-variant-numeric: tabular-nums;
+    min-width: 28px; padding: 6px 12px; border-radius: 999px; color: #fff;
+    border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink);
+  }
+  .foot { margin: 0; color: rgba(255, 255, 255, .8); font-size: .85rem; }
+  .foot a { color: #fff; font-weight: 800; }
+
+  /* Pop-up polaroid */
+  .overlay {
+    position: fixed; inset: 0; z-index: 30;
+    background: rgba(15, 18, 60, .62);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    display: grid; place-items: center;
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    animation: fade .2s ease-out;
+  }
+  .polaroid {
+    position: relative;
+    width: min(400px, 100%); max-height: 100%; overflow: auto; box-sizing: border-box;
+    background: var(--paper);
+    border: 4px solid var(--ink); border-radius: 10px;
+    padding: 16px 16px 20px;
+    box-shadow: 0 14px 0 var(--ink), 0 30px 60px rgba(0, 0, 0, .4);
+    transform: rotate(-2deg);
+    animation: drop .55s cubic-bezier(.2, 1.5, .4, 1);
+    display: grid; gap: 14px; text-align: center;
+  }
+  .tape {
+    position: absolute; top: -14px; left: 50%; width: 110px; height: 28px; transform: translateX(-50%) rotate(3deg);
+    background: repeating-linear-gradient(45deg, rgba(255, 210, 63, .85) 0 10px, rgba(255, 224, 120, .85) 10px 20px);
+    border: 2px solid rgba(27, 31, 75, .25);
+  }
+  .photo {
+    position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 100%;
+    background: #eef1ff; border: 3px solid var(--ink); border-radius: 4px; overflow: hidden;
+    display: grid; place-items: center;
+  }
+  .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo svg { width: 72%; height: auto; }
+  .badge {
+    position: absolute; right: 10px; bottom: 10px;
+    font-family: var(--font-display); font-size: 1.9rem; line-height: 1; font-variant-numeric: tabular-nums;
+    color: #fff; padding: 10px 14px 8px; border-radius: 16px; border: 3px solid var(--ink);
+    box-shadow: 0 4px 0 var(--ink); transform: rotate(6deg);
+  }
+  .loading { font-family: var(--font-display); color: var(--muted); animation: bob .7s ease-in-out infinite alternate; }
+  .phrase { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(1.15rem, 5vw, 1.45rem); line-height: 1.2; text-wrap: balance; }
+  .pct { margin: -6px 0 0; color: var(--muted); font-weight: 800; }
+  .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .ghost { font-weight: 900; background: #fff; color: var(--ink); border: 3px solid var(--ink); border-radius: 999px; padding: 11px 20px; }
+  .ghost:hover { background: #f1f3ff; }
+  .again {
+    font-family: var(--font-display); color: var(--ink); background: linear-gradient(180deg, #ffe066, var(--gold));
+    border: 3px solid var(--ink); border-radius: 999px; padding: 11px 22px 9px; box-shadow: 0 5px 0 var(--gold-deep), 0 5px 0 3px var(--ink);
+  }
+  .again:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--gold-deep), 0 1px 0 3px var(--ink); }
+
+  #confetti { position: fixed; inset: 0; z-index: 40; pointer-events: none; width: 100%; height: 100%; }
+
+  /* Bichos desenhados (só aparecem se o GIF não carregar) */
+  .wiggle { animation: wiggle 1.2s ease-in-out infinite; transform-origin: 50% 90%; }
+  .ear-l { animation: ear 1.6s ease-in-out infinite; transform-origin: 70px 70px; }
+  .ear-r { animation: ear 1.6s ease-in-out infinite reverse; transform-origin: 130px 70px; }
+  .tail { animation: tail .35s ease-in-out infinite alternate; transform-origin: 160px 160px; }
+  .blink { animation: blink 3s infinite; transform-origin: center; transform-box: fill-box; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes drop { from { transform: translateY(-40px) rotate(-12deg) scale(.7); opacity: 0; } }
+  @keyframes bob { to { transform: translateY(-6px); } }
+  @keyframes wiggle { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+  @keyframes ear { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-12deg); } }
+  @keyframes tail { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+  @keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px) rotate(-.6deg); } 75% { transform: translateX(4px) rotate(.6deg); } }
+  .shaking { animation: shake .12s linear infinite; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="rays" aria-hidden="true"></div>
+
+<main>
+  <header class="logo">
+    <small>MEDIDOR OFICIAL DO DIA</small>
+    <h1><span class="k">Kris</span>leito<span class="t">metro</span></h1>
+  </header>
+
+  <section class="meter" id="meter" aria-label="Medidor">
+    <svg viewBox="0 0 400 225" role="img" aria-labelledby="meter-desc">
+      <desc id="meter-desc">Medidor de 0, Krisleite, a 100, Tifanometro</desc>
+      <g id="bands"></g>
+      <g id="ticks"></g>
+      <g class="needle" id="needle">
+        <path d="M 193 205 L 200 50 L 207 205 Z" fill="var(--ink)"/>
+        <circle cx="200" cy="58" r="6" fill="var(--gold)" stroke="var(--ink)" stroke-width="3"/>
+      </g>
+      <circle cx="200" cy="205" r="20" fill="var(--ink)"/>
+      <circle cx="200" cy="205" r="9" fill="var(--gold)"/>
+    </svg>
+    <div class="end"><span class="a">0 · KRISLEITE</span><span class="b">TIFANOMETRO · 100</span></div>
+    <div class="lcd" aria-live="polite"><b id="value">50</b><span>/100</span></div>
+    <p class="verdict" id="verdict">Aperte o botão pra medir</p>
+  </section>
+
+  <button class="big" id="measure" type="button">MEDIR AGORA</button>
+
+  <div class="history" id="history" aria-label="Últimas medições"></div>
+  <p class="foot">Resultado 100% científico, aprovado por gatos e cachorros. GIFs via <a href="https://giphy.com" target="_blank" rel="noopener">GIPHY</a>.</p>
+</main>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="polaroid" role="dialog" aria-modal="true" aria-labelledby="phrase">
+    <span class="tape" aria-hidden="true"></span>
+    <div class="photo" id="photo"></div>
+    <p class="phrase" id="phrase"></p>
+    <p class="pct" id="pct"></p>
+    <div class="actions">
+      <button class="ghost" id="close" type="button">Fechar</button>
+      <button class="again" id="again" type="button">MEDIR DE NOVO</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script>
+(() => {
+  const KRIS = "Krisleite";
+  const TIFA = "Tifanometro";
+
+  // GIFs públicos de memes de gatos e cachorros (Giphy).
+  const GATOS = [
+    "BBNYBoYa5VwtO", "93mS3A87wfmOySC29W", "zK7xO69K89P8czmcLI", "62bRBJV1ccA9nyLmKy",
+    "Cm4ZDVRSsr7pHbNmKM", "pY8jLmZw0ElqvVeRH4", "iXbnkZTxCo4t8l8mxK", "0fhWZy2571BZouoJ1t",
+    "15UbO1LY4O2Fxw8gnI", "POSSdf783QLV9xH9kI", "JIX9t2j0ZTN9S", "0SVAVxeJsnJ1WRMIPX",
+    "sk83mErmBXii5BR3vV", "TbRkubcqlgBksEqMv4", "oaweavI1Yz5agBRxyE",
+  ];
+  const CACHORROS = [
+    "n0RqQ4psXxY772zvUL", "ZK92FCOPbY8JaFhiMM", "nIHzyvEoIjD0DenFZq", "c4mMnJ7K2Q4pUhSQ2N",
+    "ieRtGgdBKEXnRpxAed", "10ECejNtM1GyRy", "Wwn5NKv4At2CIc8XQa", "vklmyUxERpLI1vSg0z",
+    "r8sz3alO1HMdoPpHgX", "FLKUJnRt6cGBG102B0", "U7Mi4XXlWKFMEkpSQR", "SggILpMXO7Xt6",
+    "umw2Y8CDhrxNvYlq8o", "5JEWBLv0mZDYA", "YmyrLxHa3PeFOgWR65", "lYdSNN8FwmKRbSNYrk",
+  ];
+  const gifUrl = (id) => `https://media.giphy.com/media/${id}/giphy.gif`;
+
+  // Faixas do medidor: cor no arco e frases sorteadas.
+  const FAIXAS = [
+    { ate: 10, cor: "#c81e63", lista: [
+      `Hoje você é 100% ${KRIS}. Não tem pra ninguém.`,
+      `${KRIS} raiz, de carteirinha.`,
+      `Alerta máximo de ${KRIS}!`,
+      `Nível ${KRIS} lendário desbloqueado.`,
+    ]},
+    { ate: 30, cor: "#ff3d8b", lista: [
+      `Hoje você está mais para ${KRIS}.`,
+      `Dia bem ${KRIS}, aproveite.`,
+      `A energia ${KRIS} está forte em você hoje.`,
+    ]},
+    { ate: 45, cor: "#ff8fb8", lista: [
+      `Puxando pro lado ${KRIS}, mas com calma.`,
+      `Um leve tempero de ${KRIS} no ar.`,
+      `${KRIS} moderado. Pode sair de casa.`,
+    ]},
+    { ate: 54, cor: "#ffd23f", lista: [
+      `Empate técnico! Metade ${KRIS}, metade ${TIFA}.`,
+      `Nem ${KRIS} nem ${TIFA}: você está em cima do muro.`,
+      `Equilíbrio perfeito. Os cientistas estão confusos.`,
+    ]},
+    { ate: 69, cor: "#7fe3d6", lista: [
+      `Puxando pro lado ${TIFA}, mas ainda dá pra voltar.`,
+      `Um leve tempero de ${TIFA} hoje.`,
+      `${TIFA} moderado. Fique de olho.`,
+    ]},
+    { ate: 89, cor: "#10c9b4", lista: [
+      `Hoje você está mais para ${TIFA}.`,
+      `Dia bem ${TIFA}, assuma.`,
+      `A energia ${TIFA} tomou conta.`,
+    ]},
+    { ate: 100, cor: "#0a8f80", lista: [
+      `Hoje você é 100% ${TIFA}. Sem volta.`,
+      `${TIFA} raiz, nível lendário.`,
+      `O medidor estourou de tanto ${TIFA}!`,
+      `Nem a ciência explica tanto ${TIFA}.`,
+    ]},
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const needle = $("needle"), valueEl = $("value"), verdict = $("verdict");
+  const btn = $("measure"), overlay = $("overlay"), photo = $("photo");
+  const phraseEl = $("phrase"), pctEl = $("pct"), historyEl = $("history"), meter = $("meter");
+
+  // Arco em faixas coloridas + marcas a cada 10.
+  const CX = 200, CY = 205, R = 165;
+  const ponto = (v, r) => {
+    const a = Math.PI * (1 - v / 100);
+    return [CX + r * Math.cos(a), CY - r * Math.sin(a)];
+  };
+  const bands = $("bands");
+  let ini = 0;
+  bands.insertAdjacentHTML("beforeend",
+    `<path d="M ${ponto(0, R).join(" ")} A ${R} ${R} 0 0 1 ${ponto(100, R).join(" ")}" fill="none" stroke="var(--ink)" stroke-width="46" stroke-linecap="round"/>`);
+  FAIXAS.forEach((f, i) => {
+    const [x1, y1] = ponto(ini, R), [x2, y2] = ponto(f.ate, R);
+    const cap = i === 0 || i === FAIXAS.length - 1 ? "round" : "butt";
+    bands.insertAdjacentHTML("beforeend",
+      `<path d="M ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2}" fill="none" stroke="${f.cor}" stroke-width="36" stroke-linecap="${cap}"/>`);
+    ini = f.ate;
+  });
+  const ticks = $("ticks");
+  for (let v = 0; v <= 100; v += 5) {
+    const big = v % 10 === 0;
+    const [x1, y1] = ponto(v, 138), [x2, y2] = ponto(v, big ? 124 : 130);
+    ticks.insertAdjacentHTML("beforeend",
+      `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="var(--ink)" stroke-width="${big ? 3.5 : 2}" stroke-linecap="round"/>`);
+    if (v % 25 === 0) {
+      const [xl, yl] = ponto(v, 108);
+      ticks.insertAdjacentHTML("beforeend", `<text class="tick-num" x="${xl.toFixed(1)}" y="${(yl + 5).toFixed(1)}" text-anchor="middle">${v}</text>`);
+    }
+  }
+
+  const sorteia = (lista) => lista[Math.floor(Math.random() * lista.length)];
+  const faixaDe = (v) => FAIXAS.find((f) => v <= f.ate);
+  const curto = (v) => (v < 46 ? `mais ${KRIS}` : v > 54 ? `mais ${TIFA}` : "empate técnico");
+
+  let atual = 50;
+  const desenha = (v) => {
+    needle.style.transform = `rotate(${(v / 100) * 180 - 90}deg)`;
+    valueEl.textContent = String(Math.round(v)).padStart(2, "0");
+  };
+  desenha(atual);
+
+  const reduz = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Ponteiro dá umas voltas malucas antes de parar no resultado.
+  function anima(final) {
+    return new Promise((resolve) => {
+      if (reduz) { atual = final; desenha(final); return resolve(); }
+      meter.classList.add("shaking");
+      const paradas = [Math.random() * 100, Math.random() * 100, Math.random() * 100, Math.random() * 100, final];
+      let i = 0;
+      const passo = () => {
+        const de = atual, para = paradas[i], ultimo = i === paradas.length - 1;
+        if (ultimo) meter.classList.remove("shaking");
+        const dur = ultimo ? 1000 : 230;
+        const t0 = performance.now();
+        const frame = (t) => {
+          const p = Math.min(1, (t - t0) / dur);
+          const e = ultimo ? 1 - Math.pow(1 - p, 3) * Math.cos(p * Math.PI * 2.5) : 1 - Math.pow(1 - p, 2);
+          atual = de + (para - de) * e;
+          desenha(Math.max(0, Math.min(100, atual)));
+          if (p < 1) requestAnimationFrame(frame);
+          else { atual = para; desenha(para); i++; i < paradas.length ? passo() : resolve(); }
+        };
+        requestAnimationFrame(frame);
+      };
+      passo();
+    });
+  }
+
+  // Desenhos de reserva, caso o navegador bloqueie os GIFs.
+  const gatoSvg = `<svg viewBox="0 0 200 200" class="wiggle" aria-label="Gato desenhado">
+    <path class="tail" d="M150 160 q40 -10 30 -60" stroke="#1b1f4b" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <g class="ear-l"><path d="M52 92 L60 30 L100 72 Z" fill="#ffb347" stroke="#1b1f4b" stroke-width="5" stroke-linejoin="round"/></g>
+    <g class="ear-r"><path d="M148 92 L140 30 L100 72 Z" fill="#ffb347" stroke="#1b1f4b" stroke-width="5" stroke-linejoin="round"/></g>
+    <ellipse cx="100" cy="115" rx="64" ry="58" fill="#ffb347" stroke="#1b1f4b" stroke-width="5"/>
+    <ellipse class="blink" cx="76" cy="108" rx="9" ry="12" fill="#1b1f4b"/>
+    <ellipse class="blink" cx="124" cy="108" rx="9" ry="12" fill="#1b1f4b"/>
+    <path d="M94 128 h12 l-6 7 z" fill="#ff3d8b"/>
+    <path d="M100 135 q-8 10 -16 4 M100 135 q8 10 16 4" stroke="#1b1f4b" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M40 126 h26 M40 138 h26 M160 126 h-26 M160 138 h-26" stroke="#1b1f4b" stroke-width="3" stroke-linecap="round"/>
+  </svg>`;
+  const cachorroSvg = `<svg viewBox="0 0 200 200" class="wiggle" aria-label="Cachorro desenhado">
+    <path class="tail" d="M150 165 q40 -5 35 -45" stroke="#1b1f4b" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <ellipse cx="100" cy="112" rx="62" ry="60" fill="#d9a066" stroke="#1b1f4b" stroke-width="5"/>
+    <g class="ear-l"><ellipse cx="46" cy="104" rx="20" ry="40" fill="#8a5a33" stroke="#1b1f4b" stroke-width="5"/></g>
+    <g class="ear-r"><ellipse cx="154" cy="104" rx="20" ry="40" fill="#8a5a33" stroke="#1b1f4b" stroke-width="5"/></g>
+    <ellipse cx="100" cy="140" rx="34" ry="26" fill="#f3d2a8" stroke="#1b1f4b" stroke-width="4"/>
+    <ellipse class="blink" cx="78" cy="100" rx="9" ry="11" fill="#1b1f4b"/>
+    <ellipse class="blink" cx="122" cy="100" rx="9" ry="11" fill="#1b1f4b"/>
+    <ellipse cx="100" cy="128" rx="12" ry="8" fill="#1b1f4b"/>
+    <path d="M100 136 v8 q-10 10 -18 2 M100 144 q10 10 18 2" stroke="#1b1f4b" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M92 152 q8 18 16 0 z" fill="#ff3d8b" stroke="#1b1f4b" stroke-width="3"/>
+  </svg>`;
+
+  // Sorteia um GIF sem repetir o último; já deixa o próximo pré-carregado.
+  let ultimoGif = null, proximo = null;
+  function sorteiaGif() {
+    const tipo = Math.random() < 0.5 ? "gato" : "cachorro";
+    const lista = (tipo === "gato" ? GATOS : CACHORROS).filter((id) => id !== ultimoGif);
+    const id = sorteia(lista);
+    return { tipo, id };
+  }
+  function preCarrega() {
+    proximo = sorteiaGif();
+    const img = new Image();
+    img.src = gifUrl(proximo.id);
+  }
+
+  function mostraBicho() {
+    const { tipo, id } = proximo || sorteiaGif();
+    ultimoGif = id;
+    const badge = photo.querySelector(".badge");
+    photo.innerHTML = `<span class="loading">chamando um ${tipo}…</span>`;
+    if (badge) photo.appendChild(badge);
+    const img = new Image();
+    img.alt = `GIF de meme de ${tipo}`;
+    const reserva = () => { photo.querySelector(".loading")?.remove(); photo.insertAdjacentHTML("afterbegin", tipo === "gato" ? gatoSvg : cachorroSvg); };
+    const desiste = setTimeout(() => { img.onload = img.onerror = null; reserva(); }, 7000);
+    img.onload = () => { clearTimeout(desiste); photo.querySelector(".loading")?.remove(); photo.prepend(img); };
+    img.onerror = () => { clearTimeout(desiste); reserva(); };
+    img.src = gifUrl(id);
+    preCarrega();
+  }
+
+  // Confete na hora do resultado.
+  const canvas = $("confetti"), ctx = canvas.getContext("2d");
+  let pecas = [], rodando = false;
+  function confete(cores) {
+    if (reduz) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (let i = 0; i < 140; i++) {
+      pecas.push({
+        x: innerWidth / 2 + (Math.random() - .5) * 120, y: innerHeight * .45,
+        vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 6,
+        w: 6 + Math.random() * 8, h: 8 + Math.random() * 10,
+        r: Math.random() * Math.PI, vr: (Math.random() - .5) * .3,
+        cor: sorteia(cores), vida: 0,
+      });
+    }
+    if (!rodando) { rodando = true; requestAnimationFrame(passoConfete); }
+  }
+  function passoConfete() {
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    pecas.forEach((p) => {
+      p.vy += .35; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.vida++;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      ctx.fillStyle = p.cor; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.vida / 6)));
+      ctx.restore();
+    });
+    pecas = pecas.filter((p) => p.y < innerHeight + 40 && p.vida < 400);
+    if (pecas.length) requestAnimationFrame(passoConfete);
+    else { rodando = false; ctx.clearRect(0, 0, innerWidth, innerHeight); }
+  }
+
+  const historico = [];
+  function registra(v) {
+    historico.unshift(v);
+    historico.length = Math.min(historico.length, 8);
+    historyEl.innerHTML = historico
+      .map((x) => `<span class="chip" style="background:${faixaDe(x).cor}">${x}</span>`)
+      .join("");
+  }
+
+  let ultimoFoco = null;
+  function abrePopup(v) {
+    const f = faixaDe(v);
+    phraseEl.textContent = sorteia(f.lista);
+    pctEl.textContent = `${v} de 100 no Krisleitometro`;
+    photo.innerHTML = `<span class="badge" style="background:${f.cor}">${v}</span>`;
+    ultimoFoco = document.activeElement;
+    overlay.hidden = false;
+    $("again").focus();
+    mostraBicho();
+    confete([f.cor, "#ffd23f", "#ffffff", "#4d7cff"]);
+  }
+  function fechaPopup() {
+    if (overlay.hidden) return;
+    overlay.hidden = true;
+    if (ultimoFoco) ultimoFoco.focus();
+  }
+
+  async function medir() {
+    if (btn.disabled) return;
+    fechaPopup();
+    btn.disabled = true;
+    btn.textContent = "MEDINDO…";
+    verdict.textContent = "Calibrando os sensores…";
+    verdict.style.color = "";
+    const final = Math.floor(Math.random() * 101);
+    await anima(final);
+    verdict.textContent = `Resultado: ${curto(final)}`;
+    verdict.style.color = faixaDe(final).cor;
+    registra(final);
+    btn.disabled = false;
+    btn.textContent = "MEDIR AGORA";
+    abrePopup(final);
+  }
+
+  preCarrega();
+  btn.addEventListener("click", medir);
+  $("again").addEventListener("click", medir);
+  $("close").addEventListener("click", fechaPopup);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fechaPopup(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") fechaPopup(); });
+})();
+</script>
+</body>
+</html>
